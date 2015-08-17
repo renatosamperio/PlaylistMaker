@@ -45,10 +45,11 @@ class PlaylistGenerator():
 
     #print json.dumps(search_response, sort_keys=True, indent=4, separators=(',', ': '))
     # Filtering search results to only videos
-    videosFound = {'video':[], 'playlist' : [], 'channel':[]}
+    videosFound = {'videos':[], 'playlists' : [], 'channels':[]}
     startTime = time.time()
     for search_result in search_response.get("items", []):
       if search_result["id"]["kind"] == "youtube#video":
+	#print "*** video:", search_result["snippet"]
 	videosFound['videos'].append({'title':search_result["snippet"]["title"], \
 				     'id': search_result["id"]["videoId"] })
       elif search_result["id"]["kind"] == "youtube#channel":
@@ -59,7 +60,11 @@ class PlaylistGenerator():
 				     'id': search_result["id"]["playlistId"] })
     ElapsedTime = time.time() - startTime
     
-    size = len(videosFound['video']) + len(videosFound['playlist']) + len(videosFound['channel'])
+    keys = videosFound.keys()
+    size = 0
+    for key in keys:
+      size = len(videosFound[key]) 
+    #size = len(videosFound['videos']) + len(videosFound['playlists']) + len(videosFound['channels'])
     logMsg = '+ Found '+str(size)+' videos in '+str(ElapsedTime)+'s.'
     PlaylistGenerator.logging.log(LogLevel.CONSOLE, logMsg)
     #json.dumps(videosFound, sort_keys=True, indent=4, separators=(',', ': '))
