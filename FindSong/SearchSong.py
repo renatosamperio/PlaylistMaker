@@ -29,7 +29,7 @@ class PlaylistGenerator():
     
   @staticmethod
   def SearchInYouTube(options):
-    logMsg = "+ Searching query: ["+ options['query']+"]"
+    logMsg = "  + Searching query: ["+ options['query']+"]"
     PlaylistGenerator.logging.log(LogLevel.CONSOLE, logMsg)
     videos = []
     youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
@@ -65,7 +65,7 @@ class PlaylistGenerator():
     for key in keys:
       size = len(videosFound[key]) 
     #size = len(videosFound['videos']) + len(videosFound['playlists']) + len(videosFound['channels'])
-    logMsg = '+ Found '+str(size)+' videos in '+str(ElapsedTime)+'s.'
+    logMsg = '  + Found '+str(size)+' videos in '+str(ElapsedTime)+'s.'
     PlaylistGenerator.logging.log(LogLevel.CONSOLE, logMsg)
     #json.dumps(videosFound, sort_keys=True, indent=4, separators=(',', ': '))
     return videosFound

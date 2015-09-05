@@ -12,6 +12,7 @@ from apiclient.errors import HttpError
 
 from FindSong.SearchSong import PlaylistGenerator
 from Utils.PlaylistLogger import BaseLogger, LogLevel
+from SongData.DiscogsClient import DiscogsQuery
 
 class PlaylistTerm(cmd.Cmd):
     """Simple command processor example."""
@@ -31,8 +32,10 @@ class PlaylistTerm(cmd.Cmd):
       # Creating logger
       self.logger = BaseLogger()
       self.plMaker = PlaylistGenerator()
+      self.query = DiscogsQuery()
     
     def cmdloop(self, intro=None):
+	'''Command loop '''
         #print 'cmdloop(%s)' % intro
         return cmd.Cmd.cmdloop(self, intro)
     
@@ -107,19 +110,19 @@ class PlaylistTerm(cmd.Cmd):
 	""" List existing items"""
 	# Check if argument line exists in item keys
 	if self.items == []:
-	  self.logger.log(LogLevel.CONSOLE, 'Warning: items are empty')
+	  self.logger.log(LogLevel.CONSOLE, '  Warning: items are empty')
 	  return
 		   
 	keys = self.items.keys()
 	options = self.items.keys()
 	options.append('all')
-	options.append('chosen')
+	options.append('pickups')
 	if len(keys) < 1:
-	  self.logger.log(LogLevel.CONSOLE, 'Warning: No items types were found')
+	  self.logger.log(LogLevel.CONSOLE, '  Warning: No items types were found')
 	  return
 	
 	if len(line)>0 and line not in options:
-	  self.logger.log(LogLevel.CONSOLE, 'Warning: Invalid option: '+line)
+	  self.logger.log(LogLevel.CONSOLE, '  Warning: Invalid option: '+line)
 	  return
 	  
 	try:
@@ -133,12 +136,15 @@ class PlaylistTerm(cmd.Cmd):
 		self.logger.log(LogLevel.CONSOLE, msg)
 		index += 1
 	    return
-	  elif line == 'chosen':
+	  elif line == 'pickups':
 	    if self.chosenItem == []:
-	      self.logger.log(LogLevel.CONSOLE, 'Choose a video to download')
+	      self.logger.log(LogLevel.CONSOLE, '  Choose a video to download')
 	    else:
-	      m = "["+self.chosenItem['title']+"]: "+self.chosenItem['id']
-	      self.logger.log(LogLevel.CONSOLE, m)
+	      index = 0
+	      for item in self.chosenItem:
+		msg = '  ['+str(index)+']: '+item['title']+"]"
+		self.logger.log(LogLevel.CONSOLE, msg)
+		index += 1
 	    return
 	  else:
 	    #print '*** line', line
@@ -159,7 +165,7 @@ class PlaylistTerm(cmd.Cmd):
     def complete_list(self, text, line, begidx, endidx):
       keys = self.items.keys()
       keys.append('all')
-      keys.append('chosen')
+      keys.append('pickups')
       if not text:
 	  completions = keys
       else:
@@ -169,48 +175,55 @@ class PlaylistTerm(cmd.Cmd):
 			  ]
       return completions
 
-    def do_choose(self, line):
+    def do_pickup(self, line):
 	""" List existing items"""
 	# Check if argument line exists in item keys
 	keys = self.items.keys()
 	cmds = line.split(' ')
 	try:
 	  if len(cmds) > 1:
-	    itemType = cmds[0]+'s'
+	    
+	    # Checking if last character is an 's'
+	    itemType = cmds[0]
+	    if itemType[-1:] != 's':
+	      itemType = itemType+'s'
+
 	    index = int(cmds[1])-1
 	    if itemType in keys:
 	      if index in range(len(self.items[itemType])):
-		msg = 'Chosen item: ['+str(self.items[itemType][index]['title'])+']'
-		self.chosenItem = self.items[itemType][index]
+		#self.items[itemType][index]['title'] = self.items[itemType][index]['title'].replace(" ", "")
+		title = str(self.items[itemType][index]['title'])
+		msg = '  Chosen item: ['+title+']'
+		self.chosenItem.append(self.items[itemType][index])
 		self.logger.log(LogLevel.CONSOLE, msg)
 	      else:
-		msg = 'Warning: item index ['+str(index)+'] out of range'
+		msg = '  Warning: item index ['+str(index)+'] out of range'
 		self.logger.log(LogLevel.CONSOLE, msg)
 	    else:
-	      msg = 'Warning: item type ['+itemType+'] not found in items list'
+	      msg = '  Warning: item type ['+itemType+'] not found in items list'
 	      self.logger.log(LogLevel.CONSOLE, msg)
 	  else:
 	    itemType = cmds[0]+'s'
 	    #line = line+'s'
 	    if itemType not in keys:
-	      self.logger.log(LogLevel.CONSOLE, 'Warning: item type ['+itemType+'] not found in items list')
+	      self.logger.log(LogLevel.CONSOLE, '  Warning: item type ['+itemType+'] not found in items list')
 	      return
 	    else:
 	      items = self.items[itemType]
 	      if len(items) > 0:
 		index = 1
-		self.logger.log(LogLevel.CONSOLE, 'Choose an item to download')
+		self.logger.log(LogLevel.CONSOLE, '  Choose an item to download')
 		for item in items:
 		  msg = '  ['+str(index)+']: '+item['title'].strip()
 		  self.logger.log(LogLevel.CONSOLE, msg)
 		  index += 1
 	      else:
-		self.logger.log(LogLevel.CONSOLE, 'Warning: No items found')
+		self.logger.log(LogLevel.CONSOLE, '  Warning: No items found')
 		return
 	except IOError as e:
 	  print "I/O error({0}): {1}".format(e.errno, e.strerror)
 	  
-    def complete_choose(self, text, line, begidx, endidx):
+    def complete_pickup(self, text, line, begidx, endidx):
       keys = self.items.keys()
       if not text:
 	  completions = keys
@@ -222,47 +235,142 @@ class PlaylistTerm(cmd.Cmd):
       return completions
 
     def do_download(self, line):
-      keys = self.items.keys()
-      try:
-	url = 'https://www.youtube.com/watch?v='+self.chosenItem['id']
-	ydl_opts = {
-	  u'format': u'bestaudio/best', 
-	  u'postprocessors': [{u'preferredcodec': u'mp3',
-	  u'preferredquality': u'0',
-	  u'key': u'FFmpegExtractAudio'}]
-	}
-	with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-	  success = ydl.download([url])
-	  
-	  # Stating new downloaded file
-	  fileName = self.chosenItem['title']+'-'+self.chosenItem['id']+'.mp3'
-	  if not success:
-	    mode = os.stat(fileName).st_mode
-	    if S_ISREG(mode):
-	      self.logger.log(LogLevel.CONSOLE, 'Successfully downloaded file'+fileName)
-	    
-	    # Creating store path if not exist
-	    destinationPath = os.path.abspath('DownlaodedSongs')
-	    if not os.path.exists(destinationPath):
-	      self.logger.log(LogLevel.CONSOLE, 'Creating directoy '+destinationPath)
-	      os.makedirs(destinationPath)
-	    else:
-	      self.logger.log(LogLevel.CONSOLE, 'Directoy '+destinationPath+' exists')
-	    
-	    # Moving files to storing directory
-	    source = os.path.abspath('')+'/'+fileName
-	    dest = destinationPath+'/'+fileName
-	    os.rename(source, dest)
-	    self.logger.log(LogLevel.CONSOLE, 'Storing '+fileName)
-  
-      except IOError as e:
-	print "I/O error({0}): {1}".format(e.errno, e.strerror)
-      except OSError as e:
-	print "I/O error({0}): {1}".format(e.errno, e.strerror)
+      args = line.split(' ')
+      # Destination:
+      if 'video' in args:
+	self.do_pickup(line)
+      if 'pickup' in args:
+	self.logger.log(LogLevel.CONSOLE, "  + There are "+str(len(self.chosenItem))+" collected videos to download")
+      else:
+	self.logger.log(LogLevel.CONSOLE, "Error in downloading, invalid arguments: ("+line+")")
+	return
       
+      keys = self.items.keys()
+      head = 0
+      total = len(self.chosenItem)
+      itemID=0
+      for i in range(len(self.chosenItem)):
+	success = False
+	try:
+	  itemID += 1
+	  self.logger.log(LogLevel.CONSOLE, "  + Downloading "+str(itemID)+"/"+str(total)+": ["+self.chosenItem[head]['title']+"] ...")
+	  
+	  url = 'https://www.youtube.com/watch?v='+self.chosenItem[head]['id']
+	  ydl_opts = {
+	    u'keepvideo': False, 
+	    u'format': u'bestaudio/best', 
+	    u'postprocessors': [{u'preferredcodec': u'mp3',
+	    u'preferredquality': u'0',
+	    u'key': u'FFmpegExtractAudio'}]
+	  }
+	  with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+	    success = ydl.download([url])
+	    # Get a nice file name, otherwise it screws the unix file system
+	    
+	    # Stating new downloaded file
+	    fileName = self.chosenItem[head]['title']+"-"+self.chosenItem[head]['id']+'.mp3'
+	    if success == 0:
+	      self.logger.log(LogLevel.DEBUG, '  + Stating file: '+fileName)
+	      mode = os.stat(fileName).st_mode
+	      if S_ISREG(mode):
+		self.logger.log(LogLevel.CONSOLE, '  + Successfully downloaded file'+fileName)
+	      
+	      # Creating store path if not exist
+	      destinationPath = os.path.abspath('DownlaodedSongs')
+	      if not os.path.exists(destinationPath):
+		self.logger.log(LogLevel.DEBUG, '  + Creating directoy '+destinationPath)
+		os.makedirs(destinationPath)
+	      else:
+		self.logger.log(LogLevel.DEBUG, '  + Directoy '+destinationPath+' exists')
+	      
+	      # Moving files to storing directory
+	      source = os.path.abspath('')+'/'+fileName
+	      dest = destinationPath+'/'+fileName
+	      os.rename(source, dest)
+	      self.logger.log(LogLevel.CONSOLE, '  + Storing '+fileName)
+	      
+	    # TODO: Removing items from chosen list if they were successfully downloaded
+	    del self.chosenItem[0]
+	except IOError as e:
+	  print "*** 2Success:", success
+	  print "I/O error({0}): {1}".format(e.errno, e.strerror)
+	except OSError as e:
+	  print "*** 2Success:", success
+	  if not success:
+	    print "The file should be there, try to move it anyway..."
+	    continue
+	  print "O/S error({0}): {1}".format(e.errno, e.strerror)
+   
     def complete_download(self, text, line, begidx, endidx):
       keys = self.items.keys()
-      keys.append('chosen')
+      
+      keys.append('pickups')
+      if not text:
+	  completions = keys
+      else:
+	  completions = [ f[:-1]
+			  for f in keys
+			  if f.startswith(text)
+			  ]
+      return completions
+    
+    def do_remove(self, line):
+      args = line.split(' ')
+      # Check if argument line exists in item keys
+      if self.items == []:
+	self.logger.log(LogLevel.CONSOLE, '  Warning: items are empty')
+	return
+      if len(args) < 1:
+	self.logger.log(LogLevel.CONSOLE, '  Warning: no arguments given')
+	return
+      
+      keys = self.items.keys()
+      options = self.items.keys()
+      options.append('all')
+      options.append('pickups')
+      if len(keys) < 1:
+	self.logger.log(LogLevel.CONSOLE, '  Warning: No items types were found')
+	return
+      
+      if len(args[0])>0 and args[0] not in options:
+	self.logger.log(LogLevel.CONSOLE, '  Warning: Invalid option: '+args[0])
+	return
+      if self.chosenItem == []:
+	self.logger.log(LogLevel.CONSOLE, '  Warning: No items have been picked up')
+	return
+      
+      try:
+	if args[0] == 'all':
+	  index = 0
+	  while len(self.chosenItem) > 0:
+	    item = self.chosenItem.pop(index)
+	    msg = "  Removing item: "+ item['title']
+	    self.logger.log(LogLevel.CONSOLE, msg)
+	elif args[0] == 'pickups':
+	  index = int(args[1])
+	  if index in range(len(self.chosenItem)):
+	    item = self.chosenItem.pop(index)
+	    msg = "  Removing item in "+str(index)+": " + item['title']
+	    self.logger.log(LogLevel.CONSOLE, msg)
+	  else:
+	    self.logger.log(LogLevel.CONSOLE, '  Warning: Index not found')
+
+      except IndexError as e:
+	msg = "Index out of range: "+str(args[1])
+      except ValueError as e:
+	msg = "Invalid value: "+str(args[1])
+	self.logger.log(LogLevel.CONSOLE, msg)
+      except IOError as e:
+	msg = "I/O error({0}): {1}".format(e.errno, e.strerror)
+	self.logger.log(LogLevel.CONSOLE, msg)
+      except Exception as e:
+	msg =  str(type(e))+":"+str(e.args)
+	self.logger.log(LogLevel.CONSOLE, msg)
+      
+    def complete_remove(self, text, line, begidx, endidx):
+      keys = self.items.keys()
+      keys.append('pickups')
+      keys.append('all')
       if not text:
 	  completions = keys
       else:
@@ -271,10 +379,53 @@ class PlaylistTerm(cmd.Cmd):
 			  if f.startswith(text)
 			  ]
       return completions
+
+    def do_tag(self, line):
+      cmds = line.split(' ')
+      if len(cmds) > 0:
+	itemType = cmds[0]
+	
+	if itemType == 'pickups':
+	  if len(self.chosenItem) < 1:
+	    self.logger.log(LogLevel.CONSOLE, '  No videos had been picked up')
+	  else:
+	    index = 0
+	    for item in self.chosenItem:
+	      itemTitle = item['title']
+	      msg = '  ['+str(index)+']: Getting tag information for: '+itemTitle+'...'
+	      self.logger.log(LogLevel.CONSOLE, msg)
+	      tags = self.query.SearchSongByRelease(itemTitle)	      
+	      msg = '  ['+str(index)+']: Retrieved '+str(len(tags))+' tags'
+	      #if len(tags)>0:
+		#jsonResult = json.dumps(tags, sort_keys=True, indent=4, separators=(',', ': '))
+		#msg += ('\n'+jsonResult)
+	      self.logger.log(LogLevel.CONSOLE, msg)
+	      index += 1
+	  return
+	else:
+	  self.logger.log(LogLevel.CONSOLE, '  Warning: item type ['+itemType+'] not found in items list')
+      else:
+	self.logger.log(LogLevel.CONSOLE, '  Warning: no input commands')
       
+    def complete_tag(self, text, line, begidx, endidx):
+      tagLine = ['pickups']
+      if not text:
+	  completions = tagLine
+      else:
+	  completions = [ f
+			  for f in tagLine
+			  if f.startswith(text)
+			  ]
+      return completions
+
+    
 if __name__ == '__main__': 
     import sys
     if len(sys.argv) > 1:
         PlaylistTerm().onecmd(' '.join(sys.argv[1:]))
     else:
         PlaylistTerm().cmdloop('Starting terminal for playlist maker...')
+#search Bunny shower
+#choose video 1
+#list chosen
+#download chosen
