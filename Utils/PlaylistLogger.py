@@ -69,6 +69,6 @@ class BaseLogger(object):
       elif level == LogLevel.FILE:
 	self.logger.info(msg)
       elif level == LogLevel.CONSOLE:
-	self.logger.debug(msg)
+	print msg
     else:
-      print "("+str(level)+") :", msg
+      print "?("+str(level)+") :", msg
