@@ -1,11 +1,13 @@
 #!/usr/bin/python
 
+import os
 import cmd
 import logging
 import sys
 import json
+
 import youtube_dl
-import os
+import eyed3
 
 from stat import *
 from apiclient.errors import HttpError
@@ -252,10 +254,12 @@ class PlaylistTerm(cmd.Cmd):
       for i in range(len(self.chosenItem)):
 	success = False
 	try:
+	  item = self.chosenItem[head]
+	  itemKeys = item.keys()
 	  itemID += 1
-	  self.logger.log(LogLevel.CONSOLE, "  + Downloading "+str(itemID)+"/"+str(total)+": ["+self.chosenItem[head]['title']+"] ...")
+	  self.logger.log(LogLevel.CONSOLE, "  + Downloading "+str(itemID)+"/"+str(total)+": ["+item['title']+"] ...")
 	  
-	  url = 'https://www.youtube.com/watch?v='+self.chosenItem[head]['id']
+	  url = 'https://www.youtube.com/watch?v='+item['id']
 	  ydl_opts = {
 	    u'keepvideo': False, 
 	    u'format': u'bestaudio/best', 
@@ -268,9 +272,9 @@ class PlaylistTerm(cmd.Cmd):
 	    # Get a nice file name, otherwise it screws the unix file system
 	    
 	    # Stating new downloaded file
-	    fileName = self.chosenItem[head]['title']+"-"+self.chosenItem[head]['id']+'.mp3'
+	    fileName = item['title']+"-"+item['id']+'.mp3'
 	    if success == 0:
-	      self.logger.log(LogLevel.DEBUG, '  + Stating file: '+fileName)
+	      self.logger.log(LogLevel.CONSOLE, '  + Stating file: '+fileName)
 	      mode = os.stat(fileName).st_mode
 	      if S_ISREG(mode):
 		self.logger.log(LogLevel.CONSOLE, '  + Successfully downloaded file'+fileName)
@@ -278,10 +282,28 @@ class PlaylistTerm(cmd.Cmd):
 	      # Creating store path if not exist
 	      destinationPath = os.path.abspath('DownlaodedSongs')
 	      if not os.path.exists(destinationPath):
-		self.logger.log(LogLevel.DEBUG, '  + Creating directoy '+destinationPath)
+		self.logger.log(LogLevel.CONSOLE, '  + Creating directoy '+destinationPath)
 		os.makedirs(destinationPath)
 	      else:
-		self.logger.log(LogLevel.DEBUG, '  + Directoy '+destinationPath+' exists')
+		self.logger.log(LogLevel.CONSOLE, '  + Directory '+destinationPath+' exists')
+	      
+	      # Applying tags to MP3 file only if tag was found
+	      if 'tag' in itemKeys:
+		itemTag = item['tag']
+		audiofile = eyed3.load(fileName)
+		audiofile.tag.artist 		= itemTag['Artist']['Name']
+		audiofile.tag.album 		= itemTag['Album']
+		audiofile.tag.title 		= itemTag['SongName']
+		msg = '  + Applyed tags to MP3 file'
+		self.logger.log(LogLevel.CONSOLE, msg)
+		
+		# Checking if artist and song name exist
+		if len(itemTag['Artist']['Name'])>0 and len(itemTag['SongName'])>0:
+		  new_filename = "{0}-{1}.mp3".format(audiofile.tag.artist, audiofile.tag.title)
+		  os.rename(fileName, new_filename)
+		  fileName = new_filename
+		  msg = '  + Renaming MP3 file: '+fileName
+		  self.logger.log(LogLevel.CONSOLE, msg)
 	      
 	      # Moving files to storing directory
 	      source = os.path.abspath('')+'/'+fileName
@@ -289,13 +311,13 @@ class PlaylistTerm(cmd.Cmd):
 	      os.rename(source, dest)
 	      self.logger.log(LogLevel.CONSOLE, '  + Storing '+fileName)
 	      
-	    # TODO: Removing items from chosen list if they were successfully downloaded
+	    # Removing items from chosen list if they were successfully downloaded
 	    del self.chosenItem[0]
 	except IOError as e:
-	  print "*** 2Success:", success
+	  #print "*** 2Success:", success
 	  print "I/O error({0}): {1}".format(e.errno, e.strerror)
 	except OSError as e:
-	  print "*** 2Success:", success
+	  #print "*** 2Success:", success
 	  if not success:
 	    print "The file should be there, try to move it anyway..."
 	    continue
@@ -390,16 +412,22 @@ class PlaylistTerm(cmd.Cmd):
 	    self.logger.log(LogLevel.CONSOLE, '  No videos had been picked up')
 	  else:
 	    index = 0
-	    for item in self.chosenItem:
+	    for i in range(len(self.chosenItem)):
+	    #for item in self.chosenItem:
+	      item = self.chosenItem[i]
 	      itemTitle = item['title']
 	      msg = '  ['+str(index)+']: Getting tag information for: '+itemTitle+'...'
 	      self.logger.log(LogLevel.CONSOLE, msg)
-	      tags = self.query.SearchSongByRelease(itemTitle)	      
+	      tags = self.query.SearchSongByRelease(itemTitle)
 	      msg = '  ['+str(index)+']: Retrieved '+str(len(tags))+' tags'
-	      #if len(tags)>0:
-		#jsonResult = json.dumps(tags, sort_keys=True, indent=4, separators=(',', ': '))
-		#msg += ('\n'+jsonResult)
 	      self.logger.log(LogLevel.CONSOLE, msg)
+	      if len(tags)>0:
+		item['tag'] = tags
+		msg = '  ['+str(index)+']: '+str(len(tags))+' tags assigned'
+		self.logger.log(LogLevel.CONSOLE, msg)
+		
+		#msg = json.dumps(item, sort_keys=True, indent=4, separators=(',', ': '))
+		#self.logger.log(LogLevel.CONSOLE, msg)
 	      index += 1
 	  return
 	else:
