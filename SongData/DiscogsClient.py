@@ -19,22 +19,45 @@ class DiscogsQuery:
   
   def SearchSongByRelease(self, videoName):
     '''Searches a song in Discogs database '''
-    #TODO: video name should be divided by a dash inbetween spaces?
-    #(artistName, songName) = videoName.split(' - ')
     spc = self.indent
-    tSearchName = videoName.split(' - ')
+    songName = ''
+    artistName = ''
+    taggedData = {}
+    
+    #Looking for style of name separator
+    separators = [' - ', '- ', ' -']
+    for s in separators:
+      if s in videoName:
+	splitter = s
+	break
+      else:
+	splitter = ''
+    
+    # Get song and artist name
+    splitterFonud = True
+    if len(splitter)>0:
+      tSearchName = videoName.split(splitter)
+    else:
+      logMsg = spc+'- Could not find splitter between artist and song name'
+      self.logging.log(LogLevel.CONSOLE, logMsg)
+      tSearchName = videoName
+      splitterFonud = False
+      
     if len(tSearchName)>1:
-      (artistName, songName) = tSearchName
+      if splitterFonud:
+	(artistName, songName) = tSearchName
+      else:
+	songName = tSearchName
     else:
       logMsg = spc+'- Incorrect name convention: '+videoName
       self.logging.log(LogLevel.CONSOLE, logMsg)
+      return taggedData
  
     logMsg = spc+'+ Searching for song: ['+videoName+']'
     self.logging.log(LogLevel.CONSOLE, logMsg)
     results = self.client.search(videoName, type='release')
     pages = results.pages
     
-    taggedData = {}
     foundItems = len(results)
     logMsg = spc+'+ Found '+ str(foundItems)+' page results'
     self.logging.log(LogLevel.CONSOLE, logMsg)
@@ -61,7 +84,8 @@ class DiscogsQuery:
       release = self.client.release(data["id"])
       for track in release.tracklist:
 	lClosestMatches = get_close_matches(songName, [track.title, ''])
-	if len(lClosestMatches)>0:
+	trackInSong = track.title in songName
+	if len(lClosestMatches)>0 or trackInSong:
 	  trackTitle = track.title
 	  logMsg = spc+"+ Found: "+ track.title
 	  self.logging.log(LogLevel.CONSOLE, logMsg)
