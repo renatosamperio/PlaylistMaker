@@ -421,31 +421,38 @@ class PlaylistTerm(cmd.Cmd):
       return completions
 
     def do_tag(self, line):
+      '''Method for searching meta-data tag information for picked up song '''
       cmds = line.split(' ')
+      
+      # Filter commands
       if len(cmds) > 0:
 	itemType = cmds[0]
 	
-	if itemType == 'pickups':
+	# Do we want to tag picked up songs
+	if itemType == 'pickups' or itemType == 'pickup':
 	  if len(self.chosenItem) < 1:
 	    self.logger.log(LogLevel.CONSOLE, '  No videos had been picked up')
 	  else:
+	    
+	    # Going one-by-one for each chosen item
 	    index = 0
 	    for i in range(len(self.chosenItem)):
-	    #for item in self.chosenItem:
 	      item = self.chosenItem[i]
 	      itemTitle = item['title']
-	      msg = '  ['+str(index)+']: Getting tag information for: '+itemTitle+'...'
+	      msg = '    ['+str(index)+']: Getting tag information for: '+itemTitle+'...'
 	      self.logger.log(LogLevel.CONSOLE, msg)
 	      tags = self.query.SearchSongByRelease(itemTitle)
-	      msg = '  ['+str(index)+']: Retrieved '+str(len(tags))+' tags'
+	      msg = '    ['+str(index)+']: Retrieved '+str(len(tags))+' tags'
 	      self.logger.log(LogLevel.CONSOLE, msg)
 	      if len(tags)>0:
 		item['tag'] = tags
-		msg = '  ['+str(index)+']: '+str(len(tags))+' tags assigned'
+		msg = '    ['+str(index)+']: '+str(len(tags))+' tags assigned'
+		self.logger.log(LogLevel.CONSOLE, msg)
+	      else:
+		item['tag'] = {}
+		msg = '    ['+str(index)+']: '+str(len(tags))+' NO tags assigned'
 		self.logger.log(LogLevel.CONSOLE, msg)
 		
-		#msg = json.dumps(item, sort_keys=True, indent=4, separators=(',', ': '))
-		#self.logger.log(LogLevel.CONSOLE, msg)
 	      index += 1
 	  return
 	else:
