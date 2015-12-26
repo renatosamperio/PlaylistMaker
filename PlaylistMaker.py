@@ -189,12 +189,17 @@ class PlaylistTerm(cmd.Cmd):
 	    itemType = cmds[0]
 	    if itemType[-1:] != 's':
 	      itemType = itemType+'s'
-
+	    
+	    # Looking for position of item in list
 	    index = int(cmds[1])-1
 	    if itemType in keys:
 	      if index in range(len(self.items[itemType])):
-		#self.items[itemType][index]['title'] = self.items[itemType][index]['title'].replace(" ", "")
-		title = str(self.items[itemType][index]['title'])
+		# Checking if youtube name is valid
+		try:
+		  youtubeTitle = self.items[itemType][index]['title']
+		  title = str(youtubeTitle)
+		except UnicodeEncodeError as err:
+		  title = youtubeTitle
 		msg = '  Chosen item: ['+title+']'
 		self.chosenItem.append(self.items[itemType][index])
 		self.logger.log(LogLevel.CONSOLE, msg)
@@ -224,6 +229,8 @@ class PlaylistTerm(cmd.Cmd):
 		return
 	except IOError as e:
 	  print "I/O error({0}): {1}".format(e.errno, e.strerror)
+	except UnicodeEncodeError as err:
+	  print "Unicode encoding error in", err.object
 	  
     def complete_pickup(self, text, line, begidx, endidx):
       keys = self.items.keys()
@@ -242,11 +249,12 @@ class PlaylistTerm(cmd.Cmd):
       if 'video' in args:
 	self.do_pickup(line)
       if 'pickup' in args:
-	self.logger.log(LogLevel.CONSOLE, "  + There are "+str(len(self.chosenItem))+" collected videos to download")
+	msg = "  + There are "+str(len(self.chosenItem))+" collected videos to download"
+	self.logger.log(LogLevel.CONSOLE, msg)
       else:
 	self.logger.log(LogLevel.CONSOLE, "Error in downloading, invalid arguments: ("+line+")")
 	return
-      
+      	
       keys = self.items.keys()
       head = 0
       total = len(self.chosenItem)
