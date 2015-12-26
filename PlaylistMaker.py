@@ -49,8 +49,6 @@ class PlaylistTerm(cmd.Cmd):
         
     def parseline(self, line):
         ret = cmd.Cmd.parseline(self, line)
-        #print '*** parseline(%s) =>' % line
-        #print "*** ret:",ret
         return ret
     
     #def onecmd(self, s):
@@ -149,7 +147,6 @@ class PlaylistTerm(cmd.Cmd):
 		index += 1
 	    return
 	  else:
-	    #print '*** line', line
 	    items = self.items[line]
 	    if len(items) > 0:
 	      index = 1
@@ -332,12 +329,10 @@ class PlaylistTerm(cmd.Cmd):
 	    # Removing items from chosen list if they were successfully downloaded
 	    del self.chosenItem[0]
 	except IOError as e:
-	  #print "*** 2Success:", success
 	  print "I/O error({0}): {1}".format(e.errno, e.strerror)
 	except OSError as e:
-	  #print "*** 2Success:", success
 	  if not success:
-	    print "The file should be there, try to move it anyway..."
+	    print "  - The file should be there, try to move it anyway..."
 	    continue
 	  print "O/S error({0}): {1}".format(e.errno, e.strerror)
    
