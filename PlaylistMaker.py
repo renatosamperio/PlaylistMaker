@@ -295,19 +295,29 @@ class PlaylistTerm(cmd.Cmd):
 	      else:
 		self.logger.log(LogLevel.CONSOLE, '  + Directory '+destinationPath+' exists')
 	      
+	      # Searching for tag if it is empty
+	      if 'tag' not in itemKeys:
+		msg = "  + Looking for online song meta-data"
+		self.logger.log(LogLevel.CONSOLE, msg)
+		self.do_tag(line)
+		itemKeys = item.keys()
+	
 	      # Applying tags to MP3 file only if tag was found
-	      if 'tag' in itemKeys:
+	      if 'tag' in itemKeys and len(item['tag'])>0:
 		itemTag = item['tag']
 		audiofile = eyed3.load(fileName)
-		audiofile.tag.artist 		= itemTag['Artist']['Name']
-		audiofile.tag.album 		= itemTag['Album']
-		audiofile.tag.title 		= itemTag['SongName']
-		msg = '  + Applyed tags to MP3 file'
+		audiofile.tag.artist 	= itemTag['Artist']['Name']
+		audiofile.tag.album 	= itemTag['Album']
+		audiofile.tag.title 	= itemTag['SongName']
+		msg = '  + Applied tags to MP3 file'
 		self.logger.log(LogLevel.CONSOLE, msg)
 		
 		# Checking if artist and song name exist
 		if len(itemTag['Artist']['Name'])>0 and len(itemTag['SongName'])>0:
-		  new_filename = "{0}-{1}.mp3".format(audiofile.tag.artist, audiofile.tag.title)
+		  
+		  artistName = audiofile.tag.artist.encode('utf-8').strip()
+		  songName   = audiofile.tag.title.encode('utf-8').strip()
+		  new_filename = "{0}-{1}.mp3".format(artistName, songName)
 		  os.rename(fileName, new_filename)
 		  fileName = new_filename
 		  msg = '  + Renaming MP3 file: '+fileName
