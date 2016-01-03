@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
-from PlaylistMaker.PlaylistMaker.py import PlaylistTerm
+from PlaylistMaker.PlaylistMaker import PlaylistTerm
+from Streamer import GStreamer, StreamTerminal
 
+from Utils import *
 from FindSong import *

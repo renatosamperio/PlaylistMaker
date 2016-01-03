@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import logging
+import datetime
 
 from enum import Enum
 
@@ -27,7 +28,7 @@ class Singleton(type):
 class BaseLogger(object):
   __metaclass__ = Singleton
     
-  def __init__(self):
+  def __init__(self, terminal=None):
     """ Returns a logger with BarixTerminal logger 
     using barixTerminal.log files"""
     # create logger
@@ -53,6 +54,10 @@ class BaseLogger(object):
     # add ch to logger
     self.logger.addHandler(ch)
     self.logger.addHandler(fh)
+    
+    self.terminal = None
+    if terminal is not None:
+      self.terminal = terminal
 
   def log(self, level, msg):
     if self.logger is not []:
@@ -72,3 +77,13 @@ class BaseLogger(object):
 	print msg
     else:
       print "?("+str(level)+") :", msg
+      print msg
+      
+  def debug(self, msg):
+    if self.terminal is not None:
+      self.terminal.emptyline()
+    dated = str(datetime.datetime.now())+ "\t"+msg
+    self.log(LogLevel.CONSOLE, dated)
+    if self.terminal is not None:
+      self.terminal.emptyline()
+	      
