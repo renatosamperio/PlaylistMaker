@@ -24,12 +24,12 @@
   
   <Streams>
     <Stream>
-      <StreamDescription>House</StreamDescription>
-      <Uri>http://pub6.di.fm:80/di_house?98a17136cec3b063de6e3d34</Uri>
+      <StreamDescription>Barix Radio</StreamDescription>
+      <Uri>http://204.93.252.36:80/barix_hi</Uri>
     </Stream>
     <Stream>
-      <StreamDescription>Chilln Tropical House</StreamDescription>
-      <Uri>http://pub6.di.fm:80/di_chillntropicalhouse?1d20d572301e2e5cc9b48901</Uri>
+      <StreamDescription>Barix Radio URI</StreamDescription>
+      <Uri>http://barix.streamguys.net:80/barix_hi</Uri>
     </Stream>
   </Streams>
   
