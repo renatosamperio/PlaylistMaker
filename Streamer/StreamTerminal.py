@@ -171,9 +171,12 @@ class StreamConsole(cmd.Cmd):
 	elif tasks[0].startswith("volume"):
 	  volume = self.streamer.Volume()
 	  if tasks[0] == "volume_up":
-	    print "Volume: ", self.streamer.VolumeUp(volume)
+	    self.streamer.VolumeUp(volume)
 	  elif tasks[0] == "volume_down":
-	    print "Volume: ", self.streamer.VolumeDown(volume)
+	    self.streamer.VolumeDown(volume)
+	  elif tasks[0] == "volume_mute":
+	    self.streamer.VolumeMute()
+	    
 	elif tasks[0] == "inspect":
 	  if self.streamer is None:
 	    self.logger.debug("  Streamer not started yet")

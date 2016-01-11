@@ -182,6 +182,11 @@ class StreamPlayer(threading.Thread):
       self.logger.debug(self.indent+"Streamer volume: "+str(volume))
       return volume
     
+    def VolumeMute(self):
+      ''' Mutes volume'''
+      self.logger.debug(self.indent+"Muting playback")
+      self.player.set_property('volume', 0.0)
+      
     def VolumeUp(self, volume):
       '''Stopping streamer '''
       #new_volume = volume-0.05 if volume<=???? else 0.0
