@@ -5,6 +5,7 @@ import time
 import json
 import pymongo
 
+from optparse import OptionParser
 from pymongo import MongoClient	
 
 track = {
@@ -63,7 +64,7 @@ class MongoHandler:
 					exception_line )
       sys.exit(0)
   
-  def Exists(self, trackName):
+  def Exists(self, trackName, verbose=False):
     ''' '''
     # Checking if there is something in title state
     if len(trackName)<1:
@@ -71,7 +72,8 @@ class MongoHandler:
     
     try: 
       pattern = trackName.replace(' ', '.*')
-      #print "*** pattern:", pattern
+      if verbose:
+	print "  1) Found pattern:", pattern
       self.collection.create_index( [( 'Track', 'text')] )
       
       # Try fist time if song is in database
@@ -79,9 +81,11 @@ class MongoHandler:
       { 'Track': { '$regex': pattern } } 
 	)
       
-      #print "***1",posts.count()
-      #for post in posts:
-	#print post['Track']
+      if verbose:
+	print "  After first query, found ",posts.count(), "items"
+	for post in posts:
+	  print "    Track found in database:", post['Track']
+	  
       if posts.count()>0:
 	return posts.count()>0
       
@@ -90,17 +94,21 @@ class MongoHandler:
 	{ '$text': { '$search': pattern } },
 	{ 'score': { '$meta': 'textScore' } }
       )
-      #print "***2",posts.count()
+      if verbose:
+	print "  2) After second query, found ",posts.count(), "items"
       
       recount = 0
       scoreLimit = 3.0
       for post in posts:
 	if post['score']>scoreLimit:
-	  print '['+str(post['score'])+']= '+post['Track']
+	  if verbose:
+	      print '\t...['+str(post['score'])+']= '+post['Track']
 	  recount+=1
-      print "Second try, Found ["+str(posts.count())+"] items, and ["+ \
+      if verbose:
+	print "    Second try, Found ["+str(posts.count())+"] items, and ["+ \
 	    str(recount)+"] with score over ["+str(scoreLimit)+"]:\n\t["+\
 	    trackName+"]"
+	print "    Given track name:", trackName
       return recount>0
     except Exception as inst:
       exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -212,6 +220,25 @@ class MongoHandler:
 
 if __name__ == '__main__':
   ''''''
+  
+  usage = "usage: %prog opt1=arg1 opt2=arg2"
+  parser = OptionParser(usage=usage)
+  parser.add_option('--exists', 
+                      type="string",
+                      action='store',
+		      default=None,
+		      help="Checks if given track name exists")
+  
+  (options, args) = parser.parse_args()
+  
+  #print options
+  
+  if options.exists is not None:
+    database = MongoHandler('test_database', 'tracks')
+    if not database.Exists(options.exists, verbose=True):
+      print "=> Song does not exist!"
+    else:
+      print "=> Song exists!"
 #client = MongoClient('localhost', 27017)
 #db = client['test_database']
 #collection = db ['tracks']
@@ -290,11 +317,12 @@ if __name__ == '__main__':
   #print "Finding inserted item with handler"
   #database = MongoHandler('test_database', 'tracks')
 
+  #trackName = "Formidable Force feat. Heather  - Affection"
+  #trackName = "Memoryman (Aka Uovo) - Love"
   #trackName = "Kings Of Tomorrow feat. April - Fall For You (Sandy Rivera's C"
   #trackName = "Jay-J ft. Latrice Barnett - Keep On Rising (DJ Chus and David Penn Stereo Dub)"
   #if not database.Exists(trackName):
     #print "  Song does not exist!"
-    
   #else:
     #print "  Song exists!"
     
