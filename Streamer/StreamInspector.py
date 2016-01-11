@@ -47,21 +47,6 @@ class Inspector(threading.Thread):
       self.logger.debug(self.indent+"Starting stream inspection in [%s]"%self.endpoint)
       if streamer is not None:
 	self.start()
-
-    def clone(self, streamer):
-      ''' '''
-      uri = self.streamer.uri
-      logger = self.streamer.logger
-      
-      # Stopping streamer
-      self.streamer.Stop()
-      self.streamer.Exit()
-      
-      # Stopping ZMQ context
-      #self.Exit()
-      
-      self.logger.debug(self.indent+'Creating new instance of streamer...')
-      self.streamer = StreamPlayer(uri=uri, logger=logger)
       
     def SetZMQ(self):
       ''' Setting up ZMQ connection'''
@@ -114,7 +99,8 @@ class Inspector(threading.Thread):
 	    'State' :'Played',
 	    'Properties' : {
 	      'Played':state['organization']
-	    }
+	    },
+	    'lastModified' : datetime.datetime.now()
 	  }
       return track
 
@@ -125,8 +111,11 @@ class Inspector(threading.Thread):
       tid = ctypes.CDLL('libc.so.6').syscall(186)
       self.logger.debug(self.indent+'Starting thread [%d]'%(tid))
       
-      playingTrack = ''
       deviatingStream = 0
+      
+      self.playingTrack = ''
+      self.timeTaken = None
+      self.timeLimit = 30
       while not self.stop.isSet():
 	
 	try: 
@@ -153,29 +142,55 @@ class Inspector(threading.Thread):
 	    
 	    steamingSong = self.state["title"]
 	    steamLocation= self.state["location"] 
+	    percent = self.state["percent"]
 	    
-	    # Checking if the annoying message in German is playing
-	    banner 	 = "http://message-stream.audioaddict.com/3rdparty_di_german"
-	    if steamLocation == banner:
+	    # Checking if the annoying message in German is playing or if track is DI advert
+	    banner = "http://message-stream.audioaddict.com/3rdparty_di_german"
+	    bannerTrack = "listeners enjoying"
+	    if steamLocation == banner or steamingSong == 'DI.fm':
 	      #self.logger.debug(self.indent+'Deviating stream...')
-	      #self.clone(self.streamer)
 	      self.console.do_stream('reset')
 	      time.sleep(1)
 	      continue
 	    
-	    # Checking if song has something
+	    if bannerTrack in steamingSong:
+	      self.logger.debug(self.indent+'Invalid song title...')
+	      time.sleep(1)
+	      continue
+	      
+	    
+	    # Checking if stream bufffer is not empty (less 5%) for 30s
+	    if percent < 5:
+	      if self.timeTaken is None:
+		self.timeTaken = datetime.datetime.now()
+	      else:
+		timeDiff = datetime.datetime.now() - self.timeTaken
+		if timeDiff.seconds > self.timeLimit:
+		  self.logger.debug(self.indent+'Buffer level has been low for more than: '+str(self.timeLimit)+'s')
+		  parsed = jsonSerialisable(self.state)
+		  #print "==== state:", json.dumps( parsed, sort_keys=True, indent=4, separators=(',', ': '))
+		  self.logger.debug(self.indent+"Replaying streamer after [%s]"%(str(timeDiff)))
+		  self.streamer.Replay()
+		  self.timeTaken = None
+	      time.sleep(1)
+	      continue
+	    else:
+	      self.timeTaken = None	
+	      
+	    # Checking if song title is empty
 	    if len(steamingSong) < 1:
+	      #self.logger.debug(self.indent+'Song title is empty')
 	      time.sleep(1)
 	      continue
 	    
-	    # Checking if it is playing the same title
-	    if len(playingTrack)>0 and playingTrack == steamingSong:
+	    # Checking if it is playing a track is already seen
+	    if len(self.playingTrack)>0 and self.playingTrack == steamingSong:
 	      #self.logger.debug(self.indent+'Playing same track')
 	      time.sleep(1)
 	      continue
 	      
-	    # Checking if song exists
-	    if steamingSong == 'DI.fm' or self.database.Exists(steamingSong):
+	    # Checking if song exists 
+	    if self.database.Exists(steamingSong):
 	      #self.logger.debug(self.indent+'Song already exists')
 	      time.sleep(1)
 	      continue
@@ -184,7 +199,7 @@ class Inspector(threading.Thread):
 	    document = self.GetDocument(self.state)
 	    post_id = self.database.InsertOne(document)
 	    self.logger.debug(self.indent+'Inserted item: '+document['Track'])
-	    playingTrack = document['Track']
+	    self.playingTrack = document['Track']
 	    
 	  time.sleep(1)
 	except Exception as inst:
